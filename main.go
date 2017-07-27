@@ -1,9 +1,15 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
+)
+
+var (
+	showPrefix = flag.Bool("p", false, "show prefixes")
 )
 
 func inSlice(e string, slice []string) bool {
@@ -28,6 +34,21 @@ func checkCubectlCommand(command string) bool {
 }
 
 func run(args []string) int {
+	var (
+		candidates []string
+		prefixes   = []string{"kubectl-", "kube-", "kube"}
+	)
+
+	if *showPrefix {
+		fmt.Println(strings.Join(prefixes, " "))
+		return 0
+	}
+
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "too few arguments")
+		return 1
+	}
+
 	if checkCubectlCommand(args[0]) {
 		out, err := exec.Command("kubectl", args...).Output()
 		if err != nil {
@@ -40,10 +61,6 @@ func run(args []string) int {
 		return 0
 	}
 
-	var (
-		candidates []string
-		prefixes   = []string{"kubectl-", "kube-", "kube"}
-	)
 	for _, prefix := range prefixes {
 		command := prefix + args[0]
 		candidates = append(candidates, command)
@@ -65,9 +82,6 @@ func run(args []string) int {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "too few arguments")
-		os.Exit(1)
-	}
-	os.Exit(run(os.Args[1:]))
+	flag.Parse()
+	os.Exit(run(flag.Args()))
 }
