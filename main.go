@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 )
 
@@ -50,13 +52,9 @@ func run(args []string) int {
 	}
 
 	if checkCubectlCommand(args[0]) {
-		out, err := exec.Command("kubectl", args...).Output()
+		err := runComamnd("kubectl", args...)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, err.Error())
 			return 1
-		}
-		if len(out) > 0 {
-			fmt.Print(string(out))
 		}
 		return 0
 	}
@@ -67,18 +65,29 @@ func run(args []string) int {
 		if _, err := exec.LookPath(command); err != nil {
 			continue
 		}
-		out, err := exec.Command(command, args[1:]...).Output()
+		err := runComamnd(command, args[1:]...)
 		if err != nil {
-			panic(err)
+			return 1
 		}
-		if len(out) > 0 {
-			fmt.Print(string(out))
-		}
-		return 1
+		return 0
 	}
 
 	fmt.Fprintf(os.Stderr, "%v: not found\n", candidates)
 	return 1
+}
+
+func runComamnd(command string, args ...string) error {
+	if command == "" {
+		return errors.New("command not found")
+	}
+	if runtime.GOOS == "windows" {
+		return errors.New("not support platform")
+	}
+	cmd := exec.Command("sh", "-c", fmt.Sprintf("%s %s", command, strings.Join(args, " ")))
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
+	cmd.Stdin = os.Stdin
+	return cmd.Run()
 }
 
 func main() {
